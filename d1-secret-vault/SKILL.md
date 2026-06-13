@@ -1,6 +1,6 @@
 ---
 name: d1-secret-vault
-description: "D1 加密密钥库 — 从 Cloudflare D1 解密读取密钥，仅需 AGENT_TOKEN"
+description: "D1 加密密钥库 — 通过 api.webkubor.online 解密读写密钥，仅需 AGENT_TOKEN"
 version: 2.0.0
 ---
 
@@ -40,10 +40,13 @@ python3 $SCRIPT del secret://platform/name
 | `secret://feishu/guqiuyue-token` | 顾栖月 |
 | `secret://feishu/xiaowei-token` | 小薇 |
 | `secret://gitlab/personal-pat` | GitLab |
+| `secret://gitlab-modelgo/personal-pat` | GitLab ModelGo |
+| `secret://gitlab-paylinker/personal-pat` | GitLab Paylinker |
 | `secret://github/personal-pat` | GitHub |
 | `secret://cloudflare/api-token` | Cloudflare |
 | `secret://zhipu/api-key` | 智谱 GLM |
 | `secret://deepseek/api-key` | DeepSeek |
+| `secret://volcengine/ark-api-key` | 火山方舟 |
 
 ## 技术细节
 
