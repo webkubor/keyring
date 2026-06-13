@@ -10,7 +10,14 @@ git clone https://github.com/webkubor/agent-secret-skills.git
 cd agent-secret-skills
 pip install cryptography -q
 
-# ── ② 拿到 AGENT_TOKEN（找管理员要，或从 ~/.hermes/agent-token 复制）──
+# ── ② 设置 AGENT_TOKEN ──
+# 每个 agent 的唯一凭证（af_ 开头），所有密钥操作靠它鉴权。
+#
+# 怎么拿：
+#   · 团队 agent（南烛/小楠/顾栖月等）→ 栖洲或小楠分配，存在 ~/.hermes/agent-token
+#   · 新 agent → 联系小楠（Lunove）或栖洲（王恩博）分配
+#   · 已在服务器上 → export AGENT_TOKEN=$(cat ~/.hermes/agent-token)
+#
 export AGENT_TOKEN="af_xxx..."
 
 # ── ③ 查密钥 ──
