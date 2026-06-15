@@ -1,58 +1,54 @@
 ---
 name: d1-secret-vault
-description: "D1 加密密钥库 — 通过 api.webkubor.online 解密读写密钥，仅需 AGENT_TOKEN"
-version: 2.0.0
+description: "D1 加密密钥库 — 统一走 cs secrets（CortexOS），唯一实现，不重复造轮子"
+version: 3.0.0
 ---
 
 # D1 Secret Vault
 
-从 D1 `cortexos-brain-db` 加密密钥库解密读取密钥。纯 Python，零框架依赖。
+从 D1 `cortexos-brain-db` 加密密钥库读写密钥。**唯一实现是 cs（CortexOS，Go）**，
+所有 agent 框架统一调 `cs secrets`，不再各自维护 python/AES/HTTP 脚本。
 
 ## 前置条件
 
-- 环境变量 `AGENT_TOKEN`（af_ 开头的 agent token）
-- Python 3 + `cryptography`（`pip install cryptography`）
+- `cs`（CortexOS）在 PATH 中
+- agent token 由 cs 自动解析，按优先级：
+  `AGENT_TOKEN` env > `~/CortexOS/.fleet-creds.json` > `~/.hermes/agent-token`
+- 不需要 CF_API_TOKEN（cs 内部 CF token 也是从本密钥库取的）
 
-## 用法
+## 用法（推荐直接用 cs）
 
 ```bash
-SCRIPT=d1-secret-vault/scripts/secretvault.py
+# 解密读取
+cs secrets get secret://jenkins/modelgo
 
-# 列出所有密钥元信息（不出明文）
-python3 $SCRIPT list
+# 列出元信息（不出明文）
+cs secrets list
 
-# 解密读取密钥明文
-python3 $SCRIPT get secret://platform/name
+# 写入/更新（自动加密）
+cs secrets set --platform jenkins --name modelgo --value "<token>" --kind "API Key" --account wangenbo
 
-# 存储/更新密钥（自动加密）
-python3 $SCRIPT put secret://platform/name "值" --kind "API Key" --account "账号描述"
-
-# 删除密钥
-python3 $SCRIPT del secret://platform/name
+# 注入子进程环境变量，不打印明文
+cs secrets run --env TOKEN=secret://jenkins/modelgo -- some-command
 ```
+
+`scripts/secretvault.py` 仅是对 `cs secrets` 的薄转发层（兼容老调用），内部不含任何
+密钥逻辑：`secretvault.py get|list|put` → 转发 `cs secrets get|list|set`。
 
 ## 常用密钥
 
 | 引用 | 用途 |
 |------|------|
-| `secret://feishu/nanzhu-token` | 南烛 |
-| `secret://feishu/xiaonan-token` | 小楠 |
-| `secret://feishu/guqiuyue-token` | 顾栖月 |
-| `secret://feishu/xiaowei-token` | 小薇 |
-| `secret://gitlab/personal-pat` | GitLab |
+| `secret://jenkins/modelgo` | Jenkins 部署（账号 wangenbo） |
+| `secret://cloudflare/api-token` | Cloudflare API Token |
 | `secret://gitlab-modelgo/personal-pat` | GitLab ModelGo |
-| `secret://gitlab-paylinker/personal-pat` | GitLab Paylinker |
 | `secret://github/personal-pat` | GitHub |
-| `secret://cloudflare/api-token` | Cloudflare |
-| `secret://zhipu/api-key` | 智谱 GLM |
-| `secret://deepseek/api-key` | DeepSeek |
-| `secret://volcengine/ark-api-key` | 火山方舟 |
+| `secret://zhipu/api-key` / `secret://deepseek/api-key` / `secret://volcengine/ark-api-key` | 各 LLM |
+| `secret://feishu/{nanzhu,xiaonan,guqiuyue,xiaowei}-token` | 各 agent 飞书 token |
 
 ## 技术细节
 
-- 加密：AES-256-GCM（客户端加解密，API 只存密文）
-- Master key：API 自动获取
-- 密文表：D1 `secret_vault`
-- D1 数据库：`cortexos-brain-db`（a43038ff-8fe7-4aaa-b661-23238458456a）
-- API 端点：`https://api.webkubor.online/content/secrets`
-- 认证：Bearer token（AGENT_TOKEN）
+- 加密 AES-256-GCM（客户端加解密，API 只存密文），master key 由 API 下发
+- 密文表：D1 `secret_vault`；库：`cortexos-brain-db`
+- API：`https://api.webkubor.online/content/secrets`，Bearer agent token
+- agent 身份鉴权：D1 `agents.token_sha256` 运行时查表（加人 `cs agent register` / 踢人 `cs agent revoke` 即时生效）
