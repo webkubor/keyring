@@ -1,25 +1,9 @@
-# 🔐 Agent Skills
-
-> **AI Agent 基础设施工具集。**
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
----
-
-## 📦 Packages
-
-| Package | Description | Install |
-|---------|-------------|---------|
-| **[d1-secret-vault](./d1-secret-vault)** | 零配置加密密钥管理 — AES-256-GCM + Cloudflare D1 | `pip install cryptography` |
-| **[vite-plugin-agent-eyes](./agent-eyes)** | Vite 自愈遥测层 — 结构化日志 + Cookie 修复，让 agent 自我诊断 | `pnpm add -D vite-plugin-agent-eyes` |
-
----
-
-## 🔐 Agent Secret Vault
+# 🔐 Agent Secret Vault
 
 > **Zero-config encrypted secret management for AI agents.**
 > 一行命令解密密钥，任何 AI Agent 都能用的加密密钥库。
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Agent-lightgrey.svg)]()
 
@@ -153,51 +137,6 @@ npx wrangler deploy
 ```
 
 Full self-hosting guide: [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)
-
----
-
-## 👁️ Agent Eyes (vite-plugin-agent-eyes)
-
-> **给 AI agent 的自愈遥测层。** 结构化运行时日志 + 本地 Cookie 修复，让 agent 自我诊断、自我修复。
-
-### 安装
-
-```bash
-pnpm add -D vite-plugin-agent-eyes
-```
-
-### 用法
-
-```ts
-// vite.config.ts
-import { defineConfig } from 'vite'
-import { agentDebugger, agentProxy } from 'vite-plugin-agent-eyes'
-
-export default defineConfig({
-  plugins: [agentDebugger()],
-  server: {
-    proxy: {
-      '/api': agentProxy('https://your-api.example.com'),
-    },
-  },
-})
-```
-
-```ts
-// main.ts — 客户端错误捕获
-import { installAgentErrorReporter } from 'vite-plugin-agent-eyes/client'
-installAgentErrorReporter()
-```
-
-### 三类日志
-
-| 文件 | 内容 |
-|------|------|
-| `api-calls.log` | 全部 API 调用 + 请求/响应体 |
-| `errors.log` | API 失败 + 前端运行时错误 |
-| `proxy.log` | 代理层 Cookie / Set-Cookie / status |
-
-详见 [agent-eyes/README.md](./agent-eyes/README.md)
 
 ---
 
