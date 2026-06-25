@@ -1,85 +1,103 @@
-# 🔐 Agent Secret Skills — AI Agent 密钥管理
+# 🔐 Keyring — 本地加密密钥/密码管理
 
-> **告别 .env 泄露，让任何 AI Agent 安全读取加密密钥。** AES-256-GCM 云端加密，一行命令解密。
+> **人存一次，AI 用别名注入，永远看不到明文。**
 
-[![Stars](https://img.shields.io/github/stars/webkubor/agent-secret-skills?style=social)](https://github.com/webkubor/agent-secret-skills)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Works%20With-Any%20AI%20Agent-blue)]()
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 
 ---
 
 ## 🔥 3 句话说明白
 
-1. **API Key 硬编码在代码里 = 定时炸弹**
-2. **Agent Secret Skills 把密钥加密存云端，Agent 一行命令解密读取**
-3. **支持 20+ 种密钥类型，任何 Agent 框架都能用**
+1. **存密钥/密码：** `keyring set secret://github/my-pat "ghp_xxx"`
+2. **建别名：** `keyring alias set github_token secret://github/my-pat`
+3. **AI 用：** `keyring run --env GITHUB_TOKEN=github_token -- git push`
+
+**AI 永远只看到 `github_token`，看不到 `ghp_xxx`。**
 
 ---
 
-## ⚡ 30 秒接入
+## ⚡ 小白 30 秒上手
 
 ```bash
-# 1. 安装 CortexOS CLI
-brew install webkubor/cortexos/cs
+# 1. 安装
+pip install -e .
 
-# 2. 设置 Agent Token
-export AGENT_TOKEN="***"
+# 2. 初始化
+keyring init
 
-# 3. 读取密钥
-cs secrets get secret://github/personal-pat
+# 3. 存密钥
+keyring set secret://github/my-pat "ghp_你的token" --kind "API Key"
+
+# 4. 存密码
+keyring set secret://gmail/my-password "你的密码" --kind "Password"
+
+# 5. 建别名
+keyring alias set github_token secret://github/my-pat
+
+# 6. AI 用
+keyring run --env GITHUB_TOKEN=github_token -- git push
 ```
 
 ---
 
-## 🛡️ 安全架构
+## 🎯 查询密码
 
-```
-Agent (你的电脑)              Cloudflare D1 (云端)
-     │                              │
-     ├── cs secrets get ──────────► │
-     │   (Bearer Token 鉴权)        │ ← 只存 AES-256-GCM 密文
-     │                              │ ← master key 分离存储
-     │ ◄──────── 解密后的明文 ────── │ ← 传输全程 TLS 1.3
-     │                              │
-     ▼                              
-   安全使用密钥                      
-   用完即弃，不落盘                   
+```bash
+# 列出所有
+keyring list
+
+# 按平台过滤
+keyring list --platform gmail
+
+# 查看有哪些平台
+keyring platforms
 ```
 
 ---
 
-## 🎯 适用场景
+## 🤖 AI Agent 怎么用
 
-| 谁 | 痛点 | 本 Skill 解决 |
-|----|------|-------------|
-| 🧑‍💻 Agent 开发者 | 密钥散落各处，.env 不安全 | 统一加密管理，一行命令读 |
-| 🏢 团队 | 共享密钥靠复制粘贴 | Agent Token 权限管理，即时生效 |
-| 🔒 安全敏感项目 | 密钥泄露 = 灾难 | AES-256-GCM，只存密文 |
+```
+用户: 帮我部署到 GitHub
+AI:   keyring run --env GITHUB_TOKEN=github_token -- git push
 
----
+用户: 帮我发邮件
+AI:   keyring run --env GMAIL_PASSWORD=gmail_password -- python send_email.py
+```
 
-## 📦 支持的密钥类型
-
-GitHub PAT · GitLab Token · Cloudflare API · DeepSeek · 智谱 · 火山引擎 · 飞书 · Jenkins · SSH Key · 自定义
+AI 看到的是别名，不是明文。
 
 ---
 
-## 🧩 兼容
+## 📁 文件结构
 
-OpenClaw · Claude Code · Cursor · Codex · OpenCode · 任何能调 HTTP 的 Agent
-
----
-
-## ⚠️ 与 .env 的区别
-
-| | .env | Agent Secret Skills |
-|--|------|---------------------|
-| 加密 | ❌ 明文 | ✅ AES-256-GCM |
-| 多 Agent 共享 | ❌ 需要手动复制 | ✅ 统一 Token 鉴权 |
-| 泄露风险 | 🔴 一次 git push 就完 | 🟢 密文 + Token 分离 |
-| 方便程度 | 读文件 | 一行 `cs secrets get` |
+```
+~/.keyring/
+├── master.key       # AES-256 密钥（chmod 600）
+├── secrets.json     # 加密后的密钥/密码
+└── aliases.json     # 别名映射
+```
 
 ---
 
-Built with 🔐 by [webkubor](https://github.com/webkubor) · Powered by [CortexOS](https://github.com/webkubor/CortexOS)
+## 📋 命令速查
+
+| 命令 | 用途 |
+|------|------|
+| `keyring init` | 初始化 |
+| `keyring wizard` | 交互式向导 |
+| `keyring set` | 存密钥/密码 |
+| `keyring get` | 读取（打印明文） |
+| `keyring delete` | 删除 |
+| `keyring list` | 列出所有 |
+| `keyring list -p gmail` | 按平台过滤 |
+| `keyring platforms` | 查看平台列表 |
+| `keyring alias set` | 建别名 |
+| `keyring alias list` | 列出别名 |
+| `keyring run` | 注入 env（AI 用） |
+| `keyring import -f .env` | 从 .env 导入 |
+
+---
+
+Built with 🔐 by [webkubor](https://github.com/webkubor)

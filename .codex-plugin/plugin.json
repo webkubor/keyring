@@ -1,0 +1,28 @@
+{
+  "name": "keyring",
+  "version": "1.0.0",
+  "description": "本地加密密钥/密码管理 — AES-256-GCM 加密，AI 能注入但看不到明文",
+  "author": "webkubor",
+  "license": "MIT",
+  "category": "security",
+  "tags": ["security", "secrets", "passwords", "encryption", "keyring"],
+  "entry_point": "keyring.cli:main",
+  "requirements": {
+    "python": ">=3.10",
+    "packages": ["cryptography>=41.0"]
+  },
+  "commands": [
+    "keyring init",
+    "keyring wizard",
+    "keyring set",
+    "keyring get",
+    "keyring delete",
+    "keyring list",
+    "keyring platforms",
+    "keyring alias",
+    "keyring run",
+    "keyring import"
+  ],
+  "triggers": ["密钥", "secret", "token", "API key", "password", "keyring"],
+  "platforms": ["linux", "macos"]
+}
