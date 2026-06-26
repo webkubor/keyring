@@ -4,8 +4,8 @@ build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "keyring-cli"
-version = "1.0.0"
-description = "本地加密密钥/密码管理 — AES-256-GCM 加密，AI 能注入但看不到明文"
+version = "1.1.0"
+description = "轻量级加密密钥管理 — 支持多账户多密钥，AI 安全注入"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"

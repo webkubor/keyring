@@ -14,7 +14,18 @@ from .store import (
     list_secrets,
     list_platforms,
     parse_ref,
+    set_account,
+    get_account,
+    list_accounts,
+    delete_account,
+    set_key,
+    get_key,
+    list_keys,
+    delete_key,
+    list_all_platforms,
+    list_platform_detail,
 )
+from .validator import validate_key, list_providers, get_provider
 from .alias import (
     set_alias,
     get_alias,
@@ -98,11 +109,7 @@ def cmd_delete(args: argparse.Namespace) -> None:
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    """非交互式：注入环境变量到子进程，AI 无法读取明文。
-
-    vault run --env TOKEN=github_token -- python app.py
-    vault run --env TOKEN=secret://github/pat -- python app.py
-    """
+    """非交互式：注入环境变量到子进程，AI 无法读取明文。"""
     env = os.environ.copy()
 
     for env_spec in args.env:
@@ -121,7 +128,6 @@ def cmd_run(args: argparse.Namespace) -> None:
             print(f"错误：{e}", file=sys.stderr)
             sys.exit(1)
 
-    # 过滤掉 -- 分隔符
     command = [c for c in args.command if c != "--"]
     if not command:
         print("错误：未指定命令", file=sys.stderr)
@@ -160,7 +166,7 @@ def cmd_alias(args: argparse.Namespace) -> None:
 
 def cmd_init(args: argparse.Namespace) -> None:
     """初始化 master key。"""
-    master_key = init_master_key()
+    init_master_key()
     print(f"✓ Master key 已生成：~/.keyring/master.key")
     print(f"\n开始使用：")
     print(f"  keyring wizard              # 交互式向导")
@@ -192,14 +198,154 @@ def cmd_import(args: argparse.Namespace) -> None:
         print(f"\n✓ 已导入 {len(imported)} 个密钥")
 
 
+# ── 账户命令 ──────────────────────────────────────────────
+
+def cmd_set_account(args: argparse.Namespace) -> None:
+    """保存账户密码。"""
+    set_account(args.platform, args.username, args.password)
+    print(f"✓ 账户 {args.username}@{args.platform} 已保存")
+
+
+def cmd_get_account(args: argparse.Namespace) -> None:
+    """读取账户密码。"""
+    password = get_account(args.platform, args.username)
+    if password is None:
+        print(f"未找到：{args.username}@{args.platform}", file=sys.stderr)
+        sys.exit(1)
+    print(password, end="")
+
+
+def cmd_list_account(args: argparse.Namespace) -> None:
+    """列出平台下所有账户。"""
+    accounts = list_accounts(args.platform)
+    if not accounts:
+        print(f"平台 {args.platform} 下没有账户")
+        return
+    print(f"  {args.platform} 账户：")
+    for username in accounts:
+        print(f"    {username}")
+
+
+def cmd_delete_account(args: argparse.Namespace) -> None:
+    """删除账户。"""
+    if delete_account(args.platform, args.username):
+        print(f"✓ 账户 {args.username}@{args.platform} 已删除")
+    else:
+        print(f"未找到：{args.username}@{args.platform}", file=sys.stderr)
+        sys.exit(1)
+
+
+# ── 密钥命令 ──────────────────────────────────────────────
+
+def cmd_set_key(args: argparse.Namespace) -> None:
+    """保存平台密钥。"""
+    set_key(args.platform, args.key_name, args.value)
+    print(f"✓ 密钥 {args.key_name}@{args.platform} 已保存")
+
+
+def cmd_get_key(args: argparse.Namespace) -> None:
+    """读取平台密钥。"""
+    value = get_key(args.platform, args.key_name)
+    if value is None:
+        print(f"未找到：{args.key_name}@{args.platform}", file=sys.stderr)
+        sys.exit(1)
+    print(value, end="")
+
+
+def cmd_list_key(args: argparse.Namespace) -> None:
+    """列出平台下所有密钥。"""
+    keys = list_keys(args.platform)
+    if not keys:
+        print(f"平台 {args.platform} 下没有密钥")
+        return
+    print(f"  {args.platform} 密钥：")
+    for key_name in keys:
+        print(f"    {key_name}")
+
+
+def cmd_delete_key(args: argparse.Namespace) -> None:
+    """删除密钥。"""
+    if delete_key(args.platform, args.key_name):
+        print(f"✓ 密钥 {args.key_name}@{args.platform} 已删除")
+    else:
+        print(f"未找到：{args.key_name}@{args.platform}", file=sys.stderr)
+        sys.exit(1)
+
+
+# ── 平台查询命令 ──────────────────────────────────────────
+
+def cmd_platform_list(args: argparse.Namespace) -> None:
+    """列出所有平台及其账户/密钥摘要。"""
+    platforms = list_all_platforms()
+    if not platforms:
+        print("（空）")
+        return
+    print("平台          账户数  密钥数")
+    print("-" * 40)
+    for platform, data in sorted(platforms.items()):
+        print(f"  {platform:<15} {len(data['accounts']):<7} {len(data['keys'])}")
+
+
+def cmd_platform_detail(args: argparse.Namespace) -> None:
+    """查看指定平台详情。"""
+    detail = list_platform_detail(args.platform_name)
+    if detail is None:
+        print(f"未找到平台：{args.platform_name}", file=sys.stderr)
+        sys.exit(1)
+    print(f"  {args.platform_name}：")
+    if detail["accounts"]:
+        print(f"    账户：")
+        for username in detail["accounts"]:
+            print(f"      {username}")
+    if detail["keys"]:
+        print(f"    密钥：")
+        for key_name in detail["keys"]:
+            print(f"      {key_name}")
+    if not detail["accounts"] and not detail["keys"]:
+        print(f"    （空）")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="keyring",
         description="轻量级加密密钥管理 — AES-256-GCM，纯本地存储",
     )
-    parser.add_argument("-V", "--version", action="version", version=f"vault {__version__}")
+    parser.add_argument("-V", "--version", action="version", version=f"keyring {__version__}")
     sub = parser.add_subparsers(dest="command", help="子命令")
 
+    # ── 账户子命令 ──
+    p_account = sub.add_parser("account", help="管理账户（用户名+密码）")
+    p_account.add_argument("action", choices=["set", "get", "list", "delete"], help="操作")
+    p_account.add_argument("platform", help="平台名称（如 github、aws）")
+    p_account.add_argument("username", nargs="?", help="用户名")
+    p_account.add_argument("password", nargs="?", help="密码（set 时必填）")
+    p_account.set_defaults(func=cmd_account)
+
+    # ── 密钥子命令 ──
+    p_key = sub.add_parser("key", help="管理平台密钥（API Key、Token 等）")
+    p_key.add_argument("action", choices=["set", "get", "list", "delete"], help="操作")
+    p_key.add_argument("platform", help="平台名称")
+    p_key.add_argument("key_name", nargs="?", help="密钥名称")
+    p_key.add_argument("value", nargs="?", help="密钥值（set 时必填）")
+    p_key.set_defaults(func=cmd_key)
+
+    # ── 平台查询 ──
+    p_platform = sub.add_parser("platform", help="查看平台列表和详情")
+    p_platform.add_argument("platform_name", nargs="?", help="平台名称（不填则列出所有）")
+    p_platform.set_defaults(func=cmd_platform)
+
+    # ── API Key 验证 ──
+    p_check = sub.add_parser("check", help="验证 API Key 是否有效")
+    p_check.add_argument("provider", help="平台名称（如 openai、deepseek、zhipu）")
+    p_check.add_argument("key_name", nargs="?", help="keyring 中的密钥名（可选）")
+    p_check.add_argument("--key", dest="api_key", help="直接提供 API Key（可选）")
+    p_check.set_defaults(func=cmd_check)
+
+    # ── 支持的平台列表 ──
+    p_providers = sub.add_parser("providers", help="列出支持的 LLM 平台")
+    p_providers.set_defaults(func=cmd_providers)
+
+    # ── 旧接口兼容 ──
     # get — 支持别名
     p_get = sub.add_parser("get", help="读取密钥（打印明文）")
     p_get.add_argument("ref", help="secret://platform/name 或别名")
@@ -269,6 +415,95 @@ def build_parser() -> argparse.ArgumentParser:
     p_import.set_defaults(func=cmd_import)
 
     return parser
+
+
+def cmd_account(args: argparse.Namespace) -> None:
+    """路由账户子命令。"""
+    if args.action == "set":
+        if not args.username or not args.password:
+            print("错误：set 需要 username 和 password", file=sys.stderr)
+            sys.exit(1)
+        cmd_set_account(args)
+    elif args.action == "get":
+        if not args.username:
+            print("错误：get 需要 username", file=sys.stderr)
+            sys.exit(1)
+        cmd_get_account(args)
+    elif args.action == "list":
+        cmd_list_account(args)
+    elif args.action == "delete":
+        if not args.username:
+            print("错误：delete 需要 username", file=sys.stderr)
+            sys.exit(1)
+        cmd_delete_account(args)
+
+
+def cmd_key(args: argparse.Namespace) -> None:
+    """路由密钥子命令。"""
+    if args.action == "set":
+        if not args.key_name or not args.value:
+            print("错误：set 需要 key_name 和 value", file=sys.stderr)
+            sys.exit(1)
+        cmd_set_key(args)
+    elif args.action == "get":
+        if not args.key_name:
+            print("错误：get 需要 key_name", file=sys.stderr)
+            sys.exit(1)
+        cmd_get_key(args)
+    elif args.action == "list":
+        cmd_list_key(args)
+    elif args.action == "delete":
+        if not args.key_name:
+            print("错误：delete 需要 key_name", file=sys.stderr)
+            sys.exit(1)
+        cmd_delete_key(args)
+
+
+def cmd_platform(args: argparse.Namespace) -> None:
+    """路由平台查询子命令。"""
+    if args.platform_name:
+        cmd_platform_detail(args)
+    else:
+        cmd_platform_list(args)
+
+
+# ── 验证命令 ──────────────────────────────────────────────
+
+def cmd_check(args: argparse.Namespace) -> None:
+    """验证 API Key 是否有效。"""
+    # 如果提供了 key 直接验证
+    if args.api_key:
+        result = validate_key(args.provider, args.api_key)
+        print(result["message"])
+        if result["models"]:
+            print(f"  可用模型：{', '.join(result['models'])}")
+        sys.exit(0 if result["valid"] else 1)
+
+    # 否则从 keyring 中读取
+    if args.key_name:
+        value = get_key(args.provider, args.key_name)
+        if value is None:
+            print(f"未找到：{args.key_name}@{args.provider}", file=sys.stderr)
+            sys.exit(1)
+        result = validate_key(args.provider, value)
+        print(result["message"])
+        if result["models"]:
+            print(f"  可用模型：{', '.join(result['models'])}")
+        sys.exit(0 if result["valid"] else 1)
+
+    print("错误：请提供 API Key 或 keyring 中的密钥名", file=sys.stderr)
+    sys.exit(1)
+
+
+def cmd_providers(args: argparse.Namespace) -> None:
+    """列出支持的 LLM 平台。"""
+    providers = list_providers()
+    print("支持的 LLM 平台：")
+    print()
+    for p in providers:
+        print(f"  {p['logo']} {p['id']:<15} {p['name']}")
+    print()
+    print(f"共 {len(providers)} 个平台")
 
 
 def main() -> None:

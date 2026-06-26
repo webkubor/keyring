@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/Version-1.0.0-blue.svg)](https://github.com/webkubor/agent-secret-skills/releases)
+[![Version](https://img.shields.io/badge/Version-1.1.0-blue.svg)](https://github.com/webkubor/keyring/releases)
 
 ---
 
@@ -15,19 +15,19 @@
 pip install keyring-cli
 
 # 初始化
-keyring init
+kyi
 
-# 存密钥
-keyring set secret://github/my-pat "ghp_xxxxxxxxxxxx"
+# 存账户密码
+kya set github user@gmail.com mypassword
 
-# 建别名（AI 只认识这个）
-keyring alias set github_token secret://github/my-pat
+# 存平台密钥
+kyk set github ghp_xxxxxxxxxxxx
 
 # AI 用
-keyring run --env GITHUB_TOKEN=github_token -- git push
+kyr --env GITHUB_TOKEN=ghp_xxxxxxxxxxxx -- git push
 ```
 
-**AI 看到的是 `github_token`，永远看不到 `ghp_xxx`。**
+**快捷别名：** `ky`=keyring `kyp`=platform `kya`=account `kyk`=key `kyi`=init `kyr`=run
 
 ---
 
@@ -62,90 +62,92 @@ AI: keyring run --env GITHUB_TOKEN=github_token -- git push
 |------|------|
 | 🔒 **AI 安全** | 别名注入，明文不暴露 |
 | ⚡ **极速** | 纯本地，毫秒级响应 |
-| 🎯 **精准** | 按平台/类型管理密钥 |
-| 📦 **零依赖** | 只需 Python 3.10+ |
+| 🎯 **多账户多密钥** | 每个平台支持多个账户和多个密钥 |
+| 📦 **轻量依赖** | 仅需 `cryptography>=41.0` |
 | 🔄 **兼容** | 支持 .env 导入 |
 
 ---
 
 ## 📖 使用指南
 
-### 存密钥
+### 账户管理
 
 ```bash
-# GitHub Token
-keyring set secret://github/my-pat "ghp_xxx" --kind "Token"
+# 保存账户（用户名+密码）
+kya set github user@gmail.com mypassword123
+kya set github admin@gmail.com adminpass456
 
-# 数据库密码
-keyring set secret://mysql/production "xxx" --kind "Password" --account "admin"
+# 读取密码
+kya get github user@gmail.com
 
-# SSH 密钥
-keyring set secret://ssh/server "$(cat ~/.ssh/id_rsa)" --kind "SSH Key"
+# 列出平台下所有账户
+kya list github
+
+# 删除账户
+kya delete github user@gmail.com
 ```
 
-### 查密钥
+### 密钥管理
 
 ```bash
-# 列出所有
-keyring list
+# 保存平台密钥（API Key、Token 等）
+kyk set github ghp_xxxxxxxxxxxx
+kyk set openai sk-xxxxxxxxxxxx
 
-# 按平台过滤
-keyring list --platform github
+# 读取密钥
+kyk get github ghp_xxxxxxxxxxxx
 
-# 查看平台统计
-keyring platforms
+# 列出平台下所有密钥
+kyk list github
+
+# 删除密钥
+kyk delete github ghp_xxxxxxxxxxxx
+```
+
+### 平台查询
+
+```bash
+# 列出所有平台及摘要
+kyp
+
+# 查看指定平台详情
+kyp github
 ```
 
 ### AI 集成
 
 ```bash
 # 推代码
-keyring run --env GITHUB_TOKEN=github_token -- git push
+kyr --env GITHUB_TOKEN=ghp_xxxxxxxxxxxx -- git push
 
 # 调 API
-keyring run --env DEEPSEEK_API_KEY=deepseek_key -- python app.py
+kyr --env OPENAI_API_KEY=sk-xxxxxxxxxxxx -- python app.py
 
 # 多个密钥
-keyring run --env TOKEN1=alias1 --env TOKEN2=alias2 -- python script.py
+kyr --env TOKEN1=secret1 --env TOKEN2=secret2 -- python script.py
+```
+
+### 别名系统
+
+```bash
+# 创建别名（AI 只认识这个）
+ky alias set github_token secret://github/ghp_xxxxxxxxxxxx
+
+# 用别名注入
+kyr --env GITHUB_TOKEN=github_token -- git push
 ```
 
 ### 从 .env 迁移
 
 ```bash
 # 预览（不实际导入）
-keyring import --file .env --dry-run
+ky import --file .env --dry-run
 
 # 导入全部
-keyring import --file .env
+ky import --file .env
 
 # 只导入 GitHub 相关
-keyring import --file .env --prefix GITHUB_
-```
-
----
-
-## 🤖 AI Agent 集成
-
-### Claude Code / Cursor / Copilot
-
-AI 助手遇到需要 token 时：
-
-```
-用户: 帮我部署到 GitHub
-AI:   我需要 GitHub Token。请运行：
-      keyring set secret://github/my-pat "你的token" --kind "Token"
-用户: （已设置）
-AI:   keyring run --env GITHUB_TOKEN=github_token -- git push
-```
-
-### 自动化脚本
-
-```bash
-#!/bin/bash
-# deploy.sh — AI 生成的部署脚本
-keyring run --env GITHUB_TOKEN=github_token \
-            --env DOCKER_PASSWORD=docker_pass \
-            -- bash deploy.sh
+ky import --file .env --prefix GITHUB_
 ```
 
 ---
@@ -155,8 +157,24 @@ keyring run --env GITHUB_TOKEN=github_token \
 ```
 ~/.keyring/
 ├── master.key       # AES-256 密钥（chmod 600）
-├── secrets.json     # 加密后的密钥（AES-256-GCM）
-└── aliases.json     # 别名映射（纯文本）
+└── secrets.json     # 加密后的账户/密钥（AES-256-GCM）
+```
+
+### 存储结构
+
+```json
+{
+  "github": {
+    "accounts": {
+      "user@gmail": "encrypted_password_1",
+      "admin@gmail": "encrypted_password_2"
+    },
+    "keys": {
+      "ghp_xxx": "encrypted_key_1",
+      "ghp_yyy": "encrypted_key_2"
+    }
+  }
+}
 ```
 
 - **加密算法**: AES-256-GCM（认证加密）
@@ -168,19 +186,59 @@ keyring run --env GITHUB_TOKEN=github_token \
 
 ## 📋 命令速查
 
-| 命令 | 用途 | 示例 |
-|------|------|------|
-| `keyring init` | 初始化 | `keyring init` |
-| `keyring wizard` | 交互向导 | `keyring wizard` |
-| `keyring set` | 存密钥 | `keyring set secret://github/pat "ghp_xxx"` |
-| `keyring get` | 读密钥 | `keyring get github_token` |
-| `keyring delete` | 删密钥 | `keyring delete secret://github/pat` |
-| `keyring list` | 列出所有 | `keyring list -p github` |
-| `keyring platforms` | 平台统计 | `keyring platforms` |
-| `keyring alias set` | 建别名 | `keyring alias set github_token secret://github/pat` |
-| `keyring alias list` | 列别名 | `keyring alias list` |
-| `keyring run` | 注入env | `keyring run --env X=alias -- cmd` |
-| `keyring import` | 导入.env | `keyring import -f .env` |
+| 快捷 | 完整 | 用途 | 示例 |
+|------|------|------|------|
+| `kyi` | `keyring init` | 初始化 | `kyi` |
+| **账户管理** | | | |
+| `kya set` | `keyring account set` | 存账户 | `kya set github user@gmail pass` |
+| `kya get` | `keyring account get` | 读密码 | `kya get github user@gmail` |
+| `kya list` | `keyring account list` | 列账户 | `kya list github` |
+| `kya delete` | `keyring account delete` | 删账户 | `kya delete github user@gmail` |
+| **密钥管理** | | | |
+| `kyk set` | `keyring key set` | 存密钥 | `kyk set github ghp_xxx value` |
+| `kyk get` | `keyring key get` | 读密钥 | `kyk get github ghp_xxx` |
+| `kyk list` | `keyring key list` | 列密钥 | `kyk list github` |
+| `kyk delete` | `keyring key delete` | 删密钥 | `kyk delete github ghp_xxx` |
+| **平台查询** | | | |
+| `kyp` | `keyring platform` | 平台列表 | `kyp` |
+| `kyp <name>` | `keyring platform <name>` | 平台详情 | `kyp github` |
+| **API 验证** | | | |
+| `ky check` | `keyring check` | 验证 key | `ky check openai --key sk-xxx` |
+| `ky providers` | `keyring providers` | 支持平台 | `ky providers` |
+| **AI 集成** | | | |
+| `kyr` | `keyring run` | 注入env | `kyr --env X=val -- cmd` |
+
+---
+
+## 🤖 兼容平台
+
+### LLM 大模型
+
+| 平台 | Logo | 验证 | 别名注入 |
+|------|------|------|----------|
+| OpenAI | 🟢 | `ky check openai --key sk-xxx` | ✅ |
+| DeepSeek | 🔵 | `ky check deepseek --key sk-xxx` | ✅ |
+| 智谱 AI | 🟣 | `ky check zhipu --key xxx` | ✅ |
+| Moonshot (Kimi) | 🌙 | `ky check moonshot --key sk-xxx` | ✅ |
+| Anthropic (Claude) | 🟠 | `ky check anthropic --key sk-ant-xxx` | ✅ |
+| Google Gemini | 💎 | `ky check gemini --key xxx` | ✅ |
+| 通义千问 | ☁️ | `ky check qwen --key sk-xxx` | ✅ |
+| MiniMax | 🔷 | `ky check minimax --key xxx` | ✅ |
+| 字节豆包 | 🫘 | `ky check doubao --key xxx` | ✅ |
+| Groq | ⚡ | `ky check groq --key gsk_xxx` | ✅ |
+| Together AI | 🤝 | `ky check together --key xxx` | ✅ |
+| OpenRouter | 🔀 | `ky check openrouter --key sk-or-xxx` | ✅ |
+| Fireworks AI | 🔥 | `ky check fireworks --key xxx` | ✅ |
+| SiliconFlow | 🧊 | `ky check siliconflow --key sk-xxx` | ✅
+| 百川 | 🌊 | `ky check baichuan --key xxx` | ✅ |
+| 讯飞星火 | ✨ | `ky check spark --key xxx` | ✅ |
+| 阿里云百炼 | ☁️ | `ky check aliyun --key xxx` | ✅ |
+
+### 开发平台
+
+| 平台 | Logo | 验证 | 别名注入 |
+|------|------|------|----------|
+| GitHub | 🐙 | `ky check github --key ghp_xxx` | ✅ |
 
 ---
 
@@ -190,10 +248,11 @@ keyring run --env GITHUB_TOKEN=github_token \
 |------|---------|------|-----------|-------|
 | AI 安全 | ✅ | ❌ | ✅ | ✅ |
 | 本地存储 | ✅ | ✅ | ❌ | ❌ |
-| 零依赖 | ✅ | ✅ | ❌ | ❌ |
+| 多账户多密钥 | ✅ | ❌ | ✅ | ✅ |
+| API Key 验证 | ✅ | ❌ | ❌ | ❌ |
+| 轻量依赖 | ✅ | ✅ | ❌ | ❌ |
 | 免费开源 | ✅ | ✅ | ❌ | ⚠️ |
 | 命令行 | ✅ | ✅ | ⚠️ | ⚠️ |
-| 别名系统 | ✅ | ❌ | ✅ | ✅ |
 
 ---
 
@@ -203,8 +262,8 @@ keyring run --env GITHUB_TOKEN=github_token \
 
 ```bash
 # 开发环境
-git clone https://github.com/webkubor/agent-secret-skills.git
-cd agent-secret-skills
+git clone https://github.com/webkubor/keyring.git
+cd keyring
 pip install -e .
 pip install pytest
 pytest
