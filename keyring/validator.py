@@ -177,7 +177,7 @@ def _check_balance(provider_name: str, api_key: str) -> Optional[str]:
     balance_apis = {
         "deepseek": {
             "url": "https://api.deepseek.com/user/balance",
-            "parse": lambda r: f"余额：¥{r.get('balance', 0):.4f}",
+            "parse": lambda r: f"余额：¥{r['balance_infos'][0]['total_balance']}" if r.get("balance_infos") else "余额：未知",
         },
         "moonshot": {
             "url": "https://api.moonshot.cn/v1/users/me/balance",
